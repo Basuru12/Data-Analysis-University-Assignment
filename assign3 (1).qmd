@@ -1,7 +1,7 @@
 ---
 title: "Assignment 3"
 subtitle: "161250 Data Analysis<br> Semester 1 2025"
-author: "ENTER YOUR NAME AND ID HERE"
+author: "Basuru Senarathne"
 format: 
   html:
     embed-resources: true
@@ -11,6 +11,12 @@ format:
 # Load styles and data
 
 Do not change any of the code in this section.
+```{r}
+packages <- c("tidyverse", "knitr", "readr", "ggplot2")
+install.packages(setdiff(packages, installed.packages()[,1]))
+
+```
+
 
 ```{css, echo=TRUE, class.source="bg-important"}
 /* DO NOT DELETE OR CHANGE THIS CODE */
