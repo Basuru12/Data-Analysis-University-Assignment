@@ -3,7 +3,7 @@
 This repository contains my **Assignment 3** for university, prepared in **R Markdown** / **Quarto** and rendered to HTML.
 
 You can view the live report here:  
-👉 **[Open the Report](https://basuru12.github.io/Data-Analysis-University-Assignment/assign3.html)**
+👉 **[Open the Report](https://basuru12.github.io/Data-Analysis-University-Assignment/)**
 
 ---
 
