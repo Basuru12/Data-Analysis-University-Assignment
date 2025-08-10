@@ -19,3 +19,9 @@ The HTML output was generated from an `.Rmd`/`.qmd` file and published via **Git
 ---
 
 ## 📂 Repository Contents
+├── assign3.qmd # or assign3.Rmd (source)
+├── assign3.html # rendered output (from Quarto/R Markdown)
+├── data/ # (optional) input data files
+├── R/ # (optional) helper scripts
+└── README.md
+
