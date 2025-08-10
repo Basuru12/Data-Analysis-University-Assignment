@@ -1,0 +1,1089 @@
+---
+title: "Assignment 3"
+subtitle: "161250 Data Analysis<br> Semester 1 2025"
+author: "ENTER YOUR NAME AND ID HERE"
+format: 
+  html:
+    embed-resources: true
+    number-sections: false
+---
+
+# Load styles and data
+
+Do not change any of the code in this section.
+
+```{css, echo=TRUE, class.source="bg-important"}
+/* DO NOT DELETE OR CHANGE THIS CODE */
+#answer {
+  background-color: #C5E4F3;
+  border-left: 3px solid #297EB1;
+  padding: 10px;
+}
+
+```
+
+```{r}
+#| message: false
+library(tidyverse)
+library(GGally)
+library(car)
+# load additional libraries here if needed
+data("storms") # built in data in the dplyr package
+```
+
+
+
+-------------
+
+### Question 1 [12 marks]
+
+a) Does a hurricane's median pressure impact the median diameter of hurricane force winds? Fit and display a simple linear model with response variable of median diameter of hurricane force winds. First tidy the dataframe to generate new summary variables of median `pressure` and `hurricane_force_diameter` so you have one observation per storm `name` and `year` as storm names can be repeated in different years. Produce a model summary table and discuss the quality of the fitted regression line. Include residual diagnostic plots in your discussion. [6 marks]
+
+::: {#answer}
+
+```{r}
+```{r}
+# Load the tidyr library for data manipulation
+library(tidyr)
+
+# Group the 'storms' dataset by 'name' and 'year'
+# Then calculate the median pressure and median hurricane force diameter for each group
+median_storms <- storms |>
+  group_by(name, year) |>
+  summarise(
+    median_pressure = median(pressure),             # Median of pressure values
+    med_hurri_f_d = median(hurricane_force_diameter) # Median diameter of hurricane-force winds
+  )
+
+# View the summarized dataset
+median_storms
+```
+
+```{r}
+# A model is fit as instruced in the question
+linear_model <- lm(  med_hurri_f_d  ~median_pressure  , data = median_storms)
+linear_model
+```
+I'm drawing a scatter plot to visualize the relationship between these two variables
+
+```{r}
+# plotting linear model line in the scatter plot using geom_smooth
+median_storms |> ggplot() + aes( median_pressure, med_hurri_f_d) + geom_point() + geom_smooth(method = 'lm')
+```
+it seems that the line has not fit the data points properly. Lot of data points are above the line. I assume this is due to the group of points that have zero hurricane force diameter. 
+
+
+
+```{r}
+summary(linear_model)
+```
+### T-Tests for the Model Parameters
+
+The *t*-tests for both the **intercept** and **median pressure** yield very low *p*-values. This indicates that both model parameters are statistically significant. Hence, we **reject the null hypothesis**, which assumes that the coefficients are equal to zero.
+
+---
+
+### R-Squared Statistic
+
+The model explains approximately **59%** of the variability in the response variable. While the model is statistically significant, its **predictive ability is only moderately adequate**.
+
+---
+
+### F-Test Statistic
+
+The **F-statistic** is **420.7**, with 1 degree of freedom in the numerator and 292 degrees of freedom in the denominator. This value is highly significant and provides strong evidence to **reject the null hypothesis** that the model does not fit the data well.
+
+---
+
+### Next Steps
+
+I will generate additional **diagnostic plots** to assess whether the fitted line violates the core **assumptions of a linear regression model**.
+
+
+```{r}
+plot(linear_model)
+```
+### Residuals vs Fitted Plot
+
+Ideally, this plot should display **random scatter** without any clear pattern. However, our model shows a distinct **trend**, with many points appearing aligned — likely due to storms with **zero hurricane-force diameters**. Additionally, most points lie **above the horizontal line**, suggesting that the linear model may not be the best fit for the data.
+
+---
+
+### Normal Q-Q Plot
+
+The Q-Q plot reveals **deviations from normality** in the residuals. To confirm this, we conduct a **Shapiro-Wilk test**.
+
+```{r}
+# Extract standardized residuals from the fitted model
+standardized_residuals <- rstandard(linear_model)
+
+# Perform Shapiro-Wilk test for normality
+shapiro.test(standardized_residuals)
+```
+
+The null hypothesis — *"The data come from a normal distribution"* — is **rejected**, indicating that the **assumption of normally distributed residuals is violated**.
+
+---
+
+### Scale-Location Plot
+
+This plot exhibits a **curved trend at the beginning**, suggesting **non-constant variance** (heteroscedasticity). This violates the linear regression assumption of **homoscedasticity**, which requires residuals to have constant variance across fitted values.
+
+---
+
+### Residuals vs Leverage Plot
+
+The plot does **not show any extreme outliers** outside the dashed lines, suggesting that high leverage is not a major concern. However, **points 551 and 521** appear consistently across several diagnostic plots.
+
+```{r}
+# Investigate points with potential influence
+median_storms[ c(551, 521), ]
+```
+
+These two storms have **unusually large hurricane-force diameters**, despite having **high pressures**. Removing or further investigating these **influential observations** may improve the model's performance.
+
+---
+
+### Summary of Diagnostic Findings
+
+- **Linearity Assumption**: Potential violation due to visible trends in residuals.
+- **Normality of Residuals**: Rejected based on Q-Q plot and Shapiro-Wilk test.
+- **Homoscedasticity**: Violated; variance is not uniform across fitted values.
+- **Influential Observations**: Points 551 and 521 may warrant removal or deeper analysis.
+
+
+:::
+
+b)  Use the fitted regression to predict median diameter of hurricane force winds with prediction intervals for 100 hypothetical storms with median pressure varying from 800:950 millibars. Provide an interpretation of your results. [2 marks]
+
+::: {#answer}
+
+```{r}
+# generating 100 random pressure values 
+
+random_vals <- runif(100, min = 800, max = 950)
+
+#making a dataframe consisting of new data values 
+
+new_data <- data.frame(median_pressure =random_vals)
+
+#predicting values using the new data frame and assigning those values to a new variable
+
+predictions <- predict(linear_model, newdata = new_data)
+
+#  intepretting the new values and their predicting values in a table
+
+interpretation <- data.frame(median_pressure = new_data, med_hurri_f_d = predictions)
+interpretation
+
+# interpretting these values in a scatter plot
+
+interpretation |> ggplot() + aes( median_pressure, med_hurri_f_d) + geom_point()
+```
+
+
+
+
+:::
+
+c) What does your analyses of residuals (question 1a) suggest about the suitability of the linear model? Explain your reasoning and, if needed, describe a modification to improve the model's performance. [4 marks]
+
+::: {#answer}
+
+### Residual Diagnostics Summary
+
+I used **residual diagnostic plots** to evaluate the assumptions of linear regression for the original model. The findings are as follows:
+
+---
+
+### Residuals vs Fitted Plot
+
+Most residuals appeared **above the fitted line**, and there was a noticeable **upward trend**. This indicates that the model **may not have captured the underlying relationship correctly**, violating the assumption of linearity.
+
+---
+
+### Normal Q-Q Plot
+
+The **standardized residuals** did not align well with the Q-Q line. Most notably, the upper-end points **deviated significantly**, indicating **non-normality** of residuals. This violates the assumption that residuals are normally distributed.
+
+---
+
+### Scale-Location Plot
+
+An **upward trend** is visible in this plot, suggesting that **variance increases** with fitted values. This implies a **violation of the homoscedasticity assumption** (equal variance).
+
+---
+
+### Residuals vs Leverage Plot
+
+No extreme outliers appear beyond the dashed lines, indicating that **high leverage is not a major concern**. However, further inspection revealed that many data points have a **hurricane-force diameter equal to zero**, which may distort the model fit.
+
+---
+
+### Identifying Influential Observations
+
+Two points — **observation 551 and 521** — have unusually **high values for both median pressure and hurricane-force diameter**. Removing these may improve model performance.
+
+---
+
+### Refitting the Model After Cleaning
+
+```{r}
+# Remove the influential data points (551 and 521)
+median_storms_clean <- median_storms[-c(551, 521), ]
+
+# Fit a new linear model excluding zero-diameter storms
+linear_model_sub <- lm(
+  med_hurri_f_d ~ median_pressure,
+  data = median_storms_clean,
+  subset = med_hurri_f_d != 0
+)
+
+# View the updated model summary
+summary(linear_model_sub)
+```
+
+As expected, the **R-squared value improved to nearly 68%**, indicating a better fit.
+
+---
+
+### Visualizing the Improved Model
+
+```{r}
+# Diagnostic plots for the improved model
+plot(linear_model_sub)
+```
+
+The **residuals are more evenly distributed**, and the plots show **improved adherence to model assumptions** compared to the initial fit.
+
+
+:::
+
+------
+
+### Question 2 [10 marks]
+
+a) Explore other variables in the `storms` dataset with a pairs plot. Discuss the Pearson's correlations of the possible predictor variables with median diameter of hurricane force winds and possible multicollinearity of the possible predictor variables. Hint: Ensure data is all on the same scale (like 1a) [3 marks]
+
+::: {#answer}
+### Handling Invalid Diameter Values
+
+It is highly unlikely for a storm to have a **zero hurricane-force or tropical storm-force wind diameter**. To address this, we convert all zero values in those columns to `NA` so they will be excluded from statistical summaries like medians.
+
+```{r}
+# Replacing zero diameter values with NA
+storms <- storms |>
+  mutate(
+    hurricane_force_diameter = if_else(hurricane_force_diameter == 0, NA_real_, hurricane_force_diameter),
+    tropicalstorm_force_diameter = if_else(tropicalstorm_force_diameter == 0, NA_real_, tropicalstorm_force_diameter)
+  )
+```
+
+---
+
+### Computing Median Values for Each Storm
+
+We now group the storms by `name` and `year` and calculate the **median values** for pressure, wind speed, and both diameter variables.
+
+```{r}
+# Calculating median values for numeric variables by storm and year
+median_storms <- storms |>
+  group_by(name, year) |>
+  summarise(
+    median_pressure = median(pressure, na.rm = TRUE),
+    med_hurri_f_d   = median(hurricane_force_diameter, na.rm = TRUE),
+    median_wind     = median(wind, na.rm = TRUE),
+    med_trop_dia    = median(tropicalstorm_force_diameter, na.rm = TRUE)
+  )
+```
+
+---
+
+### Visualizing Correlations with a Pairs Plot
+
+To examine the relationships between variables, we create a **pairs plot** using `GGally::ggpairs()`.
+
+```{r}
+# Selecting variables for correlation analysis
+pair_values <- median_storms |> select(median_pressure, med_hurri_f_d, median_wind, med_trop_dia)
+
+pair_values$name <- NULL
+# Plotting pairwise correlations
+ggpairs(pair_values)
+```
+
+---
+
+### Correlation Insights
+
+The correlations between **med_hurri_f_d** and the other variables:
+
+- **Median pressure vs. med_hurri_f_d**: *r ≈ –0.63* → moderate **negative correlation**
+- **Median wind vs. med_hurri_f_d**: *r ≈ +0.51* → moderate **positive correlation**
+- **Tropical storm diameter vs. med_hurri_f_d**: *r ≈ +0.62* → moderate **positive correlation**
+
+These suggest that hurricanes with larger force diameters tend to:
+- Occur at lower pressures,
+- Have stronger winds,
+- Also have larger tropical storm-force diameters.
+
+---
+
+### Correlation Among Predictors (Multicollinearity Risk)
+
+- **Median pressure vs. median wind**: *r ≈ –0.91* → **strong negative correlation**
+- **Median pressure vs. tropical storm diameter**: *r ≈ –0.68*
+- **Median wind vs. tropical storm diameter**: *r ≈ +0.55*
+
+> The **strong correlation** between **median pressure** and **median wind** indicates a high risk of **multicollinearity** if both are included in the same regression model.  
+> Additionally, the **moderate to strong correlation** between these variables and **tropical storm diameter** also warrants caution.
+
+
+
+:::
+b) Repeat the above correlations plot using the non-parametric Spearman rank correlation. Discuss the difference between the Pearson's correlation in 2a and this one. [2 marks]
+
+::: {#answer}
+###  Correlation Analysis Using Spearman’s Method
+
+
+
+```{r}
+# Enhanced correlation visualization using ggpairs
+ggpairs(
+  pair_values,
+  upper = list(continuous = wrap("cor", method = "spearman")),
+  lower = list(continuous = wrap("points", alpha = 0.5)),
+  diag = list(continuous = "densityDiag")
+)
+```
+
+---
+
+### Observations from Updated Correlation Matrix
+
+Several correlation coefficients have changed slightly, possibly due to **data cleaning or the removal of outliers**.
+
+#### Correlations with `med_hurri_f_d` (Median Hurricane-Force Diameter):
+
+- **Median Pressure vs. med_hurri_f_d**:  
+  *r ≈ –0.620*  
+   A **moderate negative linear relationship**: as pressure increases, hurricane-force diameter tends to decrease.  
+  This is slightly weaker than before (*previously ≈ –0.77*).
+
+- **Median Wind vs. med_hurri_f_d**:  
+  *r ≈ +0.531*  
+   A **moderate positive correlation**: stronger winds tend to be associated with larger hurricane-force diameters, but the relationship is not very strong.
+
+- **Tropical Storm Diameter vs. med_hurri_f_d**:  
+  *r ≈ +0.729*  
+  A **strong positive correlation**: storms that are large in tropical diameter are also large in hurricane-force diameter.
+
+---
+
+### Correlations Among Predictor Variables
+
+- **Median Pressure vs. Median Wind**:  
+  *r ≈ –0.866*  
+   A **very strong negative correlation**, indicating **potential multicollinearity**. As pressure decreases, wind speed increases almost linearly.
+
+- **Median Pressure vs. Tropical Storm Diameter**:  
+  *r ≈ –0.719*  
+   A **strong negative relationship**: lower pressure storms tend to have larger tropical wind diameters.
+
+- **Median Wind vs. Tropical Storm Diameter**:  
+  *r ≈ +0.637*  
+   A **moderate-to-strong positive correlation**, suggesting that stronger winds are typically seen in storms with larger tropical wind diameters.
+
+---
+
+### Conclusion
+
+The updated analysis confirms previous findings:
+- `med_hurri_f_d` correlates meaningfully with all three predictors.
+- **Multicollinearity remains a concern**, particularly between **median pressure and wind speed**.
+- The cleaning process may have **refined correlation strength**, but underlying patterns remain consistent.
+
+> These insights are essential when selecting variables for modeling to ensure reliable regression estimates.
+
+:::
+
+c) Fit and display a multiple linear model predicting median hurricane force wind diameter using median tropical storm wind diameter and another variable (no interaction) from the dataset based on your conclusions from above (question 2a & 2b) and your understanding of the dataset. Examine the assumptions using residual plots and multicollinearity of your model. Provide a summary of and discuss the fit and quality of your model. [5 marks]
+ 
+
+::: {#answer}
+
+### Selecting Predictor Variables for the Multiple Regression Model
+
+To build a multiple regression model predicting `med_hurri_f_d` (median hurricane-force diameter), I analyzed **Pearson's correlation matrix** using the pairs plot.
+
+- The collinearity between `med_trop_dia` and `median_wind` is **0.552**, which is **lower** than the collinearity between `med_trop_dia` and `median_pressure` (**–0.68**).
+- Therefore, I chose **`median_wind`** as the second predictor (along with `med_trop_dia`) to **minimize multicollinearity**.
+
+---
+
+### Fitting the Multiple Linear Regression Model
+
+```{r}
+# Fitting the model with two predictors
+multi_linear_model <- lm(med_hurri_f_d ~ med_trop_dia + median_wind, data = median_storms)
+```
+
+---
+
+### Model Summary
+
+```{r}
+# Summarize the model
+summary(multi_linear_model)
+```
+
+#### T-Tests for Model Coefficients
+
+The *t*-statistics and *p*-values for each coefficient are as follows:
+
+- **Intercept**: t = –11.86, *p* < 0.01  
+- **med_trop_dia**: t = 0.15, *p* < 0.001  
+- **median_wind**: t = 0.60, *p* < 0.001
+
+All *p*-values are highly significant, so we **reject the null hypothesis** that the coefficients equal zero. Each predictor **significantly contributes** to explaining `med_hurri_f_d`.
+
+---
+
+### Adjusted R-Squared
+
+- **Adjusted R² = 0.4559**, meaning the model explains approximately **45.6%** of the variability in `med_hurri_f_d`.
+- While this is a **moderate fit**, it does indicate that more than half of the variation remains unexplained.
+
+---
+
+### F-Test for Overall Model Significance
+
+- **F-statistic** = 63.01 (df = 2, 146), *p* < 2.2 × 10⁻¹⁶  
+- This is **highly significant**, indicating that **at least one predictor** contributes meaningfully to the model.
+
+---
+
+### Checking for Multicollinearity
+
+```{r}
+# Variance Inflation Factors
+vif(multi_linear_model)
+```
+
+- Both predictors have a **VIF of 1.205**, well below the typical threshold of concern (usually VIF > 5 or 10).
+- **No multicollinearity concerns** are present in this model.
+
+---
+
+### Diagnostic Plots
+
+```{r}
+# Diagnostic plots for multiple regression
+plot(multi_linear_model)
+```
+
+#### Residuals vs Fitted Plot
+- The line is generally **straight and well-centered**, indicating a **reasonably good linear fit**.
+
+#### Normal Q-Q Plot
+- **Residuals deviate at the tails**, suggesting **non-normality**.
+- This violates the assumption of **normally distributed residuals**.
+
+#### Scale-Location Plot
+- There is a **slight upward trend**, indicating **non-constant variance** (i.e., **violation of homoscedasticity**).
+
+#### Residuals vs Leverage Plot
+- No observations show **extremely high leverage**.
+- No points fall **outside the dashed Cook’s distance lines**, indicating **no major influential observations**.
+
+---
+
+### Conclusion
+
+The model performs moderately well in terms of explanatory power and does not suffer from multicollinearity.  
+However, **normality and homoscedasticity assumptions are slightly violated**, so results should be interpreted with caution.
+
+
+
+
+:::
+
+------
+
+------
+
+### Question 3 [12 marks]
+
+
+In Atlantic hurricane season named storms have winds of 39 mph or greater (33.89 knots). An average hurricane season produces 14 named storms. Storms can be grouped into separate types based on where they are in the ocean (subtropical, tropical, and extratropical). Generate a new variable which groups tropical storms (only examine storms with measured `tropicalstorm_force_diameter` in the original `storms` dataset) into three categories. Your new 'Tropical storms' category should include three levels named storms: `tropical`, `subtropical`, and `extratropical`.
+
+a) Use an ANOVA and post hoc analysis to test the hypothesis that median tropical storm force wind diameter is larger when the storm is `tropical` compared to `sub`-or `extra- tropical`. 
+State your null and alternative hypotheses. Report the summary table from your analysis and display your results as a plot. Use both your results tables and the plot to describe your conclusions in context. [6 marks]
+
+::: {#answer}
+
+### Preparing the Data for ANOVA
+
+We begin by selecting the relevant variables and categorizing storm statuses into three groups: *tropical*, *subtropical*, and *extratropical*.
+
+```{r}
+# Select relevant columns
+Anova_storm <- storms |>
+  select(status, tropicalstorm_force_diameter)
+
+# Create a new column categorizing storm types
+Anova_storm <- Anova_storm |> mutate(Tropical_storms = case_when(
+  status %in% c("tropical depression", "tropical storm", "tropical wave") ~ "tropical",
+  status %in% c("subtropical storm", "subtropical depression") ~ "subtropical",
+  status == "extratropical" ~ "extratropical"
+))
+
+# Drop missing values
+Anova_storm <- drop_na(Anova_storm)
+```
+
+Convert the new classification into a factor for ANOVA:
+
+```{r}
+# Convert to factor
+Anova_storm$Tropical_storms <- as.factor(Anova_storm$Tropical_storms)
+```
+
+---
+
+### Exploring Experimental Design
+
+Check group counts to assess balance:
+
+```{r}
+# View counts of each group
+table(Anova_storm$Tropical_storms)
+```
+
+>  The data is **unbalanced**, meaning group sizes are not equal. This makes the ANOVA more sensitive to **unequal variances**, which must be tested.
+
+---
+
+### Visualizing Group Distributions
+
+```{r}
+# Violin + jitter plot for diameter across groups
+visual <- Anova_storm |> 
+  ggplot() +
+  aes(x = tropicalstorm_force_diameter, y = Tropical_storms) + 
+  geom_violin() +
+  geom_jitter(width = 0, height = 0.1, alpha = 0.5)
+
+visual
+```
+
+Add group means to the plot:
+
+```{r}
+# Compute group means
+meanIS <- Anova_storm |> 
+  group_by(Tropical_storms) |> 
+  summarise(tropicalstorm_force_diameter = mean(tropicalstorm_force_diameter))
+
+# Add mean markers to the plot
+visual + 
+  geom_point(
+    data = meanIS,
+    colour = "darkorange",
+    shape = "|",
+    size = 8
+  )
+```
+
+>  Group means appear different across storm types.
+
+---
+
+### Running ANOVA
+
+```{r}
+# Fit ANOVA model
+aov(tropicalstorm_force_diameter ~ Tropical_storms, data = Anova_storm) |> summary()
+```
+
+- **Null Hypothesis**: Group means are equal.  
+- **Alternative Hypothesis**: At least one group mean is different.
+
+> The **F-statistic is significant**, suggesting that at least one group mean is different.
+
+---
+
+### Testing ANOVA Assumptions
+
+```{r}
+# Diagnostic plots for ANOVA model
+plot(aov(tropicalstorm_force_diameter ~ Tropical_storms, data = Anova_storm))
+```
+
+- **Scale-location plot** shows increasing variance possible violation of **homogeneity of variances**.
+- **Q-Q plot** indicates **non-normality of residuals**.
+
+Test homogeneity using **Levene’s Test**:
+
+```{r}
+# Levene's test for equality of variances
+car::leveneTest(aov(tropicalstorm_force_diameter ~ Tropical_storms, data = Anova_storm))
+```
+
+- **Null Hypothesis**: Variances are equal across groups.  
+- **Result**: Significant F-statistic . **variances are unequal**  therefore assumption violated.
+
+---
+
+### Transforming the Response Variable
+
+#### Log Transformation
+
+```{r}
+# Apply log transformation
+Anova_storm <- Anova_storm |> mutate(ltrop_force = log(tropicalstorm_force_diameter))
+
+# Re-test homogeneity
+leveneTest(aov(ltrop_force ~ Tropical_storms, data = Anova_storm))
+```
+
+#### Square Root Transformation
+
+```{r}
+# Apply sqrt transformation
+Anova_storm <- Anova_storm |> mutate(sqrt_trop_force = sqrt(tropicalstorm_force_diameter))
+
+# Re-test
+leveneTest(aov(sqrt_trop_force ~ Tropical_storms, data = Anova_storm))
+```
+
+#### Reciprocal Square Root Transformation
+
+```{r}
+# Apply reciprocal sqrt transformation
+Anova_storm <- Anova_storm |> mutate(reci_sqrt_trop_force = 1/sqrt(tropicalstorm_force_diameter))
+
+# Re-test
+leveneTest(aov(reci_sqrt_trop_force ~ Tropical_storms, data = Anova_storm))
+```
+
+> **Log transformation** had the highest *p*-value, suggesting better variance homogeneity.  
+We proceed with the **log-transformed response** for post-hoc tests.
+
+---
+
+### Post-Hoc Test: Tukey’s HSD
+
+```{r}
+# Check assumptions post-transformation
+plot(aov(ltrop_force ~ Tropical_storms, data = Anova_storm))
+```
+
+> The **scale-location plot is more horizontal**, and residuals are **closer to normal**.
+
+```{r}
+# Perform Tukey's Honest Significant Difference test
+aov(ltrop_force ~ Tropical_storms, data = Anova_storm) |> TukeyHSD()
+```
+
+**Tukey’s HSD Results**:
+- All pairwise comparisons have **p-adjusted = 0**, indicating **significant differences** between all groups.
+- Differences:
+  - **Tropical vs. Extratropical**: –0.955  Extratropical storms have higher means.
+  - **Tropical vs. Subtropical**: –0.454  Subtropical storms have higher means.
+  
+This suggests that tropical storms have the lowest means
+
+---
+
+### Group Means for Original (Untransformed) Variable
+
+```{r}
+# View group means
+Anova_storm |> group_by(Tropical_storms) |> summarise(mean = mean(tropicalstorm_force_diameter))
+```
+
+> ️ **Tropical storms have the smallest average tropical-storm-force diameter** among all groups in this population sample.
+
+---
+
+**Conclusion**:
+- ANOVA revealed significant differences in mean diameters among storm types.
+- **Assumptions were initially violated**, but **log transformation corrected the issue**.
+- **Tukey's HSD** confirmed that all group means differ significantly and Tropical storms had the lowest means. Therefore our hypothesis is wrong.
+
+
+
+
+:::
+
+b) Repeat 3a using a non-parametric test. State your hypotheses and interpret your results. [3 marks]
+
+::: {#answer}
+
+### Hypothesis Testing Using Kruskal-Wallis Test
+
+**Null Hypothesis**:  
+> The median **Tropical_Force_Diameter** is simillar among different groups of **Status** .
+
+---
+
+### Why Use Kruskal-Wallis?
+
+The **Kruskal-Wallis test** is a **non-parametric alternative to ANOVA**, ideal when ANOVA assumptions ( **normality** and **homogeneity of variances**) are violated.
+
+```{r}
+# Perform Kruskal-Wallis test
+kruskal.test(tropicalstorm_force_diameter ~ Tropical_storms, data = Anova_storm)
+```
+
+- The **H statistic is significant**, meaning we **reject the null hypothesis** that the medians of all three groups are equal.
+
+---
+
+### Assumption Check: Similar Shape of Distributions
+
+The Kruskal-Wallis test assumes the groups have **similar distribution shapes**.
+
+```{r}
+# Revisit violin plot from earlier analysis
+visual
+```
+
+>  The plot suggests **slight differences** in distribution shapes across groups, but the test is still robust enough for use.
+
+---
+
+### Post-Hoc Analysis: Dunn’s Test
+
+We follow up with **Dunn’s Test**, a non-parametric multiple comparison test, with **Bonferroni correction** .
+
+```{r}
+# Load library and run Dunn's Test
+library(FSA)
+dunnTest(
+  tropicalstorm_force_diameter ~ Tropical_storms,
+  data = Anova_storm,
+  method = "bonferroni"
+)
+```
+
+---
+
+### Interpretation of Dunn’s Test
+
+- All **Z statistics are significant**.
+- A **positive Z-score** indicates that the **first group listed** has a **higher median** than the second.
+
+**Pairwise comparisons:**
+- **Extratropical > Subtropical**
+- **Extratropical > Tropical**
+- **Subtropical > Tropical**
+
+---
+
+### Final Conclusion
+
+>  **Tropical storms have the **smallest** median tropical-storm-force wind diameter.  
+>  **Extratropical storms** have the **largest**.
+
+Therefore, the **original hypothesis** — that tropical storms have **larger** diameters — is **rejected**.
+
+ The Kruskal-Wallis and Dunn’s test together provide **strong evidence** of **statistically significant differences** in medians across the three storm types.
+
+
+
+:::
+
+c) Compare the parametric and non-parametric versions of the effect of ocean region on median tropical storm force wind diameter. Describe the advantages and disadvantages of each test. What assumptions do each test make and are they met with this data? [3 marks]
+
+::: {#answer}
+
+### ANOVA Test
+
+#### Assumptions of ANOVA
+1. Appropriateness of an additive linear model  
+2. Independent errors  
+3. Normally distributed errors  
+4. Homogeneity of errors (equal variances)
+
+>  Our dataset **violates the assumptions** of:
+- **Normality of residuals**
+- **Homogeneity of variances**
+
+#### Advantages of ANOVA
+- Tests whether **group means differ significantly**
+-  **Highly reliable** when assumptions are met
+
+#### Disadvantages of ANOVA
+-  **Results are invalid** if assumptions are violated  
+-  **Not robust** to outliers or unequal variances
+
+---
+
+### Kruskal-Wallis Test
+
+#### Assumptions of Kruskal-Wallis
+1. Independence of observations  
+2. Similar shaped distributions  
+3. Ordinal or continuous dependent variable
+
+>  The **first and third assumptions** are satisfied  
+> ️ There are **slight differences** in group shapes, but the test remains applicable.
+
+#### Advantages of Kruskal-Wallis
+-  **Non-parametric**: does not require normality
+-  Robust to **heterogeneity of variances**
+-  Compares **group medians**, which is useful when distributions are skewed
+
+#### Disadvantages of Kruskal-Wallis
+-  **Ranks the data**, which can reduce precision
+- **Less powerful** than ANOVA when assumptions for ANOVA are met
+
+---
+
+### ANOVA vs. Kruskal-Wallis for This Analysis
+
+#### Hypothesis
+
+> "Tropical storms have **larger** median tropical-storm-force wind diameters compared to subtropical or extratropical storms."
+
+However:
+
+- ANOVA tests for **differences in means**, not medians.
+- ANOVA assumes **normal distribution**, which does not hold here.
+
+```{r}
+# Shapiro-Wilk test for normality
+shapiro.test(Anova_storm$tropicalstorm_force_diameter)
+```
+
+>  The **Shapiro-Wilk test rejects** the null hypothesis, indicating the data is **not normally distributed**.
+
+#### Conclusion
+
+-  **ANOVA is not suitable** because:
+  - The data **violates normality and homogeneity assumptions**
+  - ANOVA tests **means**, not **medians**
+
+-  **Kruskal-Wallis** is **more appropriate** because:
+  - It compares **medians**, aligning with our hypothesis
+  - It is **non-parametric** and does not assume normality
+  - It tolerates unequal variances and is **robust** in this scenario
+
+>  Based on the statistical assumptions and the structure of our hypothesis, **Kruskal-Wallis is the preferred test**.
+
+  
+:::
+------
+
+------
+### Question 4 [8 marks]
+
+a) Generate a table of how many observations of each `status` there are for storms that have measured tropical storm force winds from the original data. Briefly discuss the implications of this table for statistical analyses. [3 marks]
+
+::: {#answer}
+
+
+
+### Checking Group Sizes
+
+We begin by checking how many observations exist for each storm status:
+
+```{r}
+# Count the number of storms for each status (excluding missing values)
+storms_filtered <- storms |>
+  filter(!is.na(tropicalstorm_force_diameter)) |>  # keep only non-missing values
+  count(status)  # count occurrences of each storm status
+```
+
+---
+
+### Effect of Unbalanced Group Sizes on Tests
+
+- The group sizes are **unequal**, which means our dataset is **unbalanced**.
+- In general, **ANOVA is more robust** when the experiment is **balanced** (i.e., groups are of similar sizes).
+- However, with **imbalanced group sizes**, ANOVA becomes **more sensitive to violations of the homogeneity of variances** (i.e., unequal spread within groups).
+  
+---
+
+### Why Kruskal-Wallis Is Preferred Here
+
+>  **Kruskal-Wallis** is **robust to unequal group sizes**  
+>  It does **not require equal variances** or normal distributions  
+>  It performs well in **non-parametric scenarios**, making it the **better choice** for our current dataset
+
+---
+
+**Conclusion**:  
+Due to the **unbalanced experimental design** and violations of ANOVA assumptions, the **Kruskal-Wallis test is more appropriate** for comparing group medians in this analysis.
+
+:::
+
+b) Conduct a test to examine the how median wind speed and `status` combine (include interaction) to influence tropical storm force winds diameter. Use appropriate levels of all variables and subset the data accordingly. Briefly discuss the results and your conclusions. [5 marks]
+
+::: {#answer}
+
+### Interaction Effect: Wind Speed × Storm Status
+
+We use a **two-way ANOVA with interaction** to assess whether `wind` and `status` influence `tropicalstorm_force_diameter`, and whether there is an **interaction effect** between them.
+
+```{r}
+
+# Convert 'status' column to a factor
+storms <- storms |> 
+  mutate(
+    status = as.factor(status)
+  )
+```
+
+
+
+```{r}
+# Two-way ANOVA with interaction term
+aov(tropicalstorm_force_diameter ~ wind * status, data = storms) |> summary()
+```
+
+#### Interpretation:
+
+- The **`wind:status` interaction term** is **statistically significant**, indicating that the effect of wind speed on tropical-storm-force diameter **varies by storm status**.
+- The **`status` term** is also significant, suggesting that **different storm types** have significantly different average tropical-storm-force diameters.
+- The **`wind` term** is significant, confirming that **wind speed** alone has a measurable effect on the tropical-storm-force diameter.
+
+---
+
+### Visualizing the Interaction
+
+To better understand the interaction between `wind` and `status`, we visualize the data using a scatter plot with linear regression lines for each group:
+
+
+
+
+
+
+```{r}
+# Plot wind vs tropical-storm-force diameter, colored by storm status
+ggstorm <- storms |> 
+  ggplot() + 
+  aes(x = wind, y = tropicalstorm_force_diameter, colour = status) +
+  geom_point(alpha = 0.4) +  # transparent points
+  stat_smooth(method = "lm")  # linear trend lines per group
+
+ggstorm
+```
+
+---
+
+### Insights from the Plot
+
+- **Extra-tropical** and some **low-category** storm types show **similar slopes**, indicating **little to no interaction** in these cases.
+- Other storm types show **distinct slopes**, confirming the presence of an **interaction effect** between the groups.
+- **Extra-tropical storms** have **higher tropical-storm-force diameters** compared to others.
+- **Hurricanes** maintain a **relatively constant tropical-storm-force diameter**, unaffected by changes in wind speed.
+- In contrast, **other storm types** (e.g., tropical and subtropical) show an **increase in tropical-storm-force diameter** with increasing wind speed.
+
+---
+
+### Conclusion
+
+>  The analysis shows that the **effect of wind speed on storm diameter differs across storm types**, confirming a **significant interaction**.  
+
+
+
+
+:::
+------
+
+
+------
+
+### Question 5 [8 marks]
+
+The Atlantic hurricane season runs from June 1 to November 30. An average hurricane season produces 14 named storms. Explore the data on storms from within this season (excluding names that begin with `Al` or spelled out number like `one`, these are just numbered storms not named). Does the data support the expected 14 named storms average? Describe your results to a general audience. Do you notice any other patterns? What additional analyses would you recommend to examine these patterns?
+
+::: {#answer}
+### Filtering Hurricane Data
+
+We focus on hurricanes that occurred during the **Atlantic hurricane season** (June to November), excluding placeholder or unnamed storms ( "One", "Two", "Alpha", etc.).
+
+```{r}
+# Load necessary library
+library(dplyr)
+
+# Filter hurricanes during Atlantic season and exclude placeholder names
+storms_14 <- storms |>
+  filter(status == "hurricane") |>
+  filter(month >= 6 & month <= 11) |>
+  filter(!grepl("^Al", name, ignore.case = TRUE)) |>  # Remove names starting with "Al"
+  filter(!tolower(name) %in% c("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"))
+```
+
+---
+
+### Counting Named Storms Per Year
+
+We count unique named storms for each year using a distinct year-name combination.
+
+```{r}
+# Count unique storm names by year
+storm_counts <- storms |> 
+  distinct(year, name) |>
+  count(year, name = "num_storms")
+```
+
+---
+
+### Visualizing Storm Frequency Over Time
+
+We start by plotting the number of storms per year using a bar chart:
+
+```{r}
+# Bar plot: number of storms per year
+ggplot(data = storm_counts, aes(x = year, y = num_storms)) +
+  geom_bar(stat = "identity")
+```
+
+>  While some years report exactly **14 named storms**, there is **no consistent pattern** of 14 storms annually.  
+>  A noticeable **increase in storm occurrences** is seen after the year 2000.
+
+We further explore the trend with a line and smooth curve:
+
+```{r}
+# Line and smooth trend plot
+ggplot(data = storm_counts, aes(x = year, y = num_storms)) +
+  geom_line() +
+  geom_smooth()
+```
+
+>  This plot confirms an **increasing trend** in named storm occurrences over the years.  
+> This trend suggests a **potential long-term shift** in storm frequency.
+
+---
+
+### Next Steps in the Analysis
+
+#### Linear Modeling:
+- A **linear regression model** can be used to predict the **number of storms** based on **year**, revealing whether the upward trend is statistically significant.
+
+#### Correlation Analysis:
+- Use **Spearman’s correlation** to analyze the relationship between:
+  - Number of storms vs. **mean wind speed**
+  - Number of storms vs. **mean pressure**
+  
+  These will help determine how storm intensity indicators have changed over time.
+
+#### Group Comparison with ANOVA / ANCOVA:
+- Use **ANOVA** to test for differences in **storm frequency** before and after the year 2000.
+- Use **ANCOVA** to control for other covariates like wind speed, pressure.
+- Categorical groupings ( storm type) and continuous variables ( wind speed) can be included to enhance the model.
+
+---
+
+>  These methods will help assess the **evolution of storm activity**, and whether environmental or temporal changes contribute to an **increase in storm frequency or intensity**.
+
+
+:::
+------
+
+Total Marks: 50 + 10 quarto = 60
